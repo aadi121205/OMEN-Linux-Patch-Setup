@@ -1,46 +1,187 @@
-# OMEN-Linux-Patch-Setup
+# OMEN Linux ACPI / DSDT Patch Setup
 
-'''
+This guide documents the **working and reliable method** to fix boot and hardware issues (notably ACPI-related) on HP OMEN laptops under Linux using a custom DSDT override.
 
-This is ABSOLUTELY the way! I've been looking for the missing piece of the puzzle, and this post very succinctly pieced it all together for me.
+⚠️ **Prerequisite:**
+This assumes **GRUB2 is installed and functioning correctly**.
 
- 
+If you are using **NixOS**, you may need to:
 
-This is assuming of course that you have Grub2 running properly. If you're attempting this in NixOS like I did, you will need to install with either "noapic" or "pci=nobar", reboot with the same kernel parameters, then switch from systemd-boot to grub2 (search the web for "NixOS bootloader" to see their instruction page on how to do this). Then all you need to do if you have this problem is to follow the steps at the Arch Linux DSDT page, tweak your DSDT table, recompile, and save to your /boot directory. Be sure to add "acpi /boot/dsdt.aml" to the line ABOVE the linux kernel line or it won't find it. 
+* Install Linux initially using `noapic` or `pci=nobar`
+* Boot once with the same kernel parameters
+* Switch from `systemd-boot` to **GRUB2**
+  (Search for *“NixOS bootloader”* in the official documentation for exact steps.)
 
- 
+Once GRUB is active, follow the steps below.
 
-Summary of the steps:
+---
 
-1. Install linux using "noapic" or "pci=nobar" as kernel parameters. 
+## Overview
 
-2. Boot linux with either "noapic" or "pci=nobar" (be sure to have keyboard and mouse handy)
+The solution involves:
 
-3. Update to latest kernels
+* Dumping your system’s **native DSDT**
+* Applying known fixes
+* Recompiling the table
+* Loading it via GRUB using `acpi /boot/dsdt.aml`
 
-4. install coreboot-tools.x64 (or at least that's what it's called in nixland)
+⚠️ **Important:**
+The `acpi /boot/dsdt.aml` line **must be placed above the `linux` line** in the GRUB entry, or the override will not be detected.
 
-5. Dump your DSDT file with 
+---
 
+## Step-by-Step Instructions
+
+### 1. Install Linux
+
+Install Linux using **one** of the following kernel parameters:
+
+* `noapic`
+* `pci=nobar`
+
+---
+
+### 2. Boot Linux
+
+Boot the installed system using the **same kernel parameter** you used during installation.
+(Keep an external keyboard/mouse handy if input devices are unstable.)
+
+---
+
+### 3. Update the System
+
+Update to the **latest kernel** available for your distribution.
+
+---
+
+### 4. Install ACPI Tools
+
+Install the required ACPI/DSDT tools.
+
+On NixOS:
+
+```bash
+coreboot-tools.x64
+```
+
+On most other distros:
+
+```bash
+iasl (ACPICA tools)
+```
+
+---
+
+### 5. Dump Your DSDT
+
+Extract your system’s current DSDT:
+
+```bash
 cat /sys/firmware/acpi/tables/DSDT > dsdt.dat
-6. Decompile with "iasl -d dsdt.dat"
+```
 
-7. Edit your file with the changes listed at https://github.com/j0hnwang/OMEN-Transcend-16-ACPI-fix/commit/2e4feda9529c09133f5f7e9623ec11226db581...
+---
 
-8. Recompile the file with "iasl -tc dsdt.dsl"
+### 6. Decompile the DSDT
 
-9. Copy the resulting dsdt.aml file to /boot as sudo.
+```bash
+iasl -d dsdt.dat
+```
 
-10. Reboot
+This will generate `dsdt.dsl`.
 
-11. Modify grub entry on the fly with "acpi /boot/dsdt.aml" above the "linux" line.
+---
 
-12. Profit.
+### 7. Apply Required Fixes
 
-13. Use John's patch to get your speakers working (haven't tried yet, but that's next).
+Edit `dsdt.dsl` and apply the changes from the following commit:
 
- 
+🔗
+[https://github.com/j0hnwang/OMEN-Transcend-16-ACPI-fix/commit/2e4feda9529c09133f5f7e9623ec11226db581](https://github.com/j0hnwang/OMEN-Transcend-16-ACPI-fix/commit/2e4feda9529c09133f5f7e9623ec11226db581)
 
-As a final note, I would actually avoid using the already compiled aml file over at https://github.com/j0hnwang/OMEN-Transcend-16-ACPI-fix for a couple of reasons. First, that aml is compiled for his laptop, and your DSDT table will be different. Using his aml file caused my grub to hang because it could no longer find my hard drives. Capture your DSDT table from /sys/firmware/DSDT like the Arch page says, edit it, and recompile. 
+Use a text editor such as:
 
-'''
+```bash
+nano dsdt.dsl
+# or
+vim dsdt.dsl
+```
+
+---
+
+### 8. Recompile the DSDT
+
+```bash
+iasl -tc dsdt.dsl
+```
+
+If successful, this will produce:
+
+```
+dsdt.aml
+```
+
+---
+
+### 9. Copy the AML File to /boot
+
+```bash
+sudo cp dsdt.aml /boot/
+```
+
+---
+
+### 10. Reboot
+
+Reboot your system normally.
+
+---
+
+### 11. Modify GRUB Entry (Temporary Test)
+
+At the GRUB menu:
+
+1. Highlight your Linux entry
+2. Press **`e`** to edit
+3. Add the following line **above** the `linux` line:
+
+   ```
+   acpi /boot/dsdt.aml
+   ```
+4. Boot with **Ctrl + X** or **F10**
+
+---
+
+### 12. Verify Boot
+
+If the system boots normally **without `noapic` / `pci=nobar`**, the patch is working.
+
+🎉 **Success**
+
+---
+
+### 13. Optional: Speaker Fix
+
+You can optionally apply John’s additional patch for speaker functionality (not tested here yet).
+
+---
+
+## ⚠️ Important Warning About Precompiled AML Files
+
+Avoid using the precompiled `dsdt.aml` provided in:
+[https://github.com/j0hnwang/OMEN-Transcend-16-ACPI-fix](https://github.com/j0hnwang/OMEN-Transcend-16-ACPI-fix)
+
+**Reasons:**
+
+* That AML is compiled specifically for **one laptop**
+* Your ACPI tables **will differ**
+* Using it caused GRUB to hang and prevented disk detection
+
+✅ **Always dump, edit, and compile your own DSDT** from:
+
+```bash
+/sys/firmware/acpi/tables/DSDT
+```
+
+This ensures compatibility and avoids serious boot issues.
+
