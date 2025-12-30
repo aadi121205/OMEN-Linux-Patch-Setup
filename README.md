@@ -5,12 +5,11 @@ This guide documents the **working and reliable method** to fix boot and hardwar
 ⚠️ **Prerequisite:**
 This assumes **GRUB2 is installed and functioning correctly**.
 
-If you are using **NixOS**, you may need to:
+If you are using **Arch/NIX**, you may need to:
 
 * Install Linux initially using `noapic` or `pci=nobar`
 * Boot once with the same kernel parameters
 * Switch from `systemd-boot` to **GRUB2**
-  (Search for *“NixOS bootloader”* in the official documentation for exact steps.)
 
 Once GRUB is active, follow the steps below.
 
